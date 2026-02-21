@@ -1,0 +1,204 @@
+// Startup–Investor matching platform
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STARTUP
+  INVESTOR
+  ADMIN
+}
+
+enum MatchStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum InvestorPipelineStatus {
+  NONE
+  REVIEWED
+  PASSED
+  MEETING_SCHEDULED
+}
+
+enum DigestFrequency {
+  NONE
+  DAILY
+  WEEKLY
+}
+
+model User {
+  id                    String          @id @default(cuid())
+  email                 String          @unique
+  passwordHash          String          @map("password_hash")
+  name                  String?
+  role                  Role
+  isAdmin               Boolean         @default(false) @map("is_admin")
+  isDeactivated         Boolean         @default(false) @map("is_deactivated")
+  termsAcceptedAt       DateTime?       @map("terms_accepted_at")
+  privacyAcceptedAt     DateTime?       @map("privacy_accepted_at")
+  notifyOnMatchRequest  Boolean         @default(true) @map("notify_on_match_request")
+  notifyOnMatchAccepted Boolean         @default(true) @map("notify_on_match_accepted")
+  digestFrequency       DigestFrequency @default(NONE) @map("digest_frequency")
+  onboardingCompletedAt DateTime?       @map("onboarding_completed_at")
+  calendarUrl           String?         @map("calendar_url")
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
+
+  startupProfile   StartupProfile?
+  investorProfile  InvestorProfile?
+  sentMatches      MatchRequest[]    @relation("SentMatches")
+  receivedMatches  MatchRequest[]    @relation("ReceivedMatches")
+  startupShortlists  StartupShortlist[]
+  investorShortlists InvestorShortlist[]
+  matchMessages      MatchMessage[]
+}
+
+model StartupProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName    String   @map("company_name")
+  imageUrl       String?  @map("image_url")
+  oneLiner       String?  @map("one_liner")
+  description    String?  @db.Text
+  sector         String[]
+  stage          String
+  fundingAmount  Int?     @map("funding_amount")
+  website        String?
+  pitchDeckUrl   String?  @map("pitch_deck_url")
+  location       String?
+  latitude       Float?   @map("latitude")
+  longitude      Float?   @map("longitude")
+  lookingFor     String[] @default([]) @map("looking_for")
+  isPublic       Boolean  @default(true) @map("is_public")
+  calendarUrl    String?  @map("calendar_url")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  matchRequests  MatchRequest[]   @relation("StartupMatches")
+  teamMembers    StartupTeamMember[]
+  shortlistedBy StartupShortlist[]
+}
+
+model StartupTeamMember {
+  id             String         @id @default(cuid())
+  startupId      String         @map("startup_id")
+  startup        StartupProfile @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  name           String
+  role           String
+  linkedInUrl    String?        @map("linked_in_url")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@map("startup_team_members")
+}
+
+model InvestorProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firmName          String?  @map("firm_name")
+  imageUrl          String?  @map("image_url")
+  bio               String?  @db.Text
+  sectors           String[]
+  stages            String[]
+  minCheck          Int?     @map("min_check")
+  maxCheck          Int?     @map("max_check")
+  location          String?
+  latitude          Float?   @map("latitude")
+  longitude         Float?   @map("longitude")
+  website           String?
+  lookingFor        String[] @default([]) @map("looking_for")
+  isPublic          Boolean  @default(true) @map("is_public")
+  accreditedInvestor Boolean @default(false) @map("accredited_investor")
+  calendarUrl       String?  @map("calendar_url")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  matchRequests  MatchRequest[]     @relation("InvestorMatches")
+  portfolio     InvestorPortfolio[]
+  shortlistedBy InvestorShortlist[]
+}
+
+model InvestorPortfolio {
+  id          String         @id @default(cuid())
+  investorId  String         @map("investor_id")
+  investor    InvestorProfile @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  companyName String         @map("company_name")
+  url         String?
+  description String?        @db.Text
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  @@map("investor_portfolios")
+}
+
+model StartupShortlist {
+  id        String         @id @default(cuid())
+  userId    String         @map("user_id")
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startupId String         @map("startup_id")
+  startup   StartupProfile @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  @@unique([userId, startupId])
+  @@map("startup_shortlists")
+}
+
+model InvestorShortlist {
+  id         String           @id @default(cuid())
+  userId    String           @map("user_id")
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  investorId String          @map("investor_id")
+  investor  InvestorProfile  @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@unique([userId, investorId])
+  @@map("investor_shortlists")
+}
+
+model MatchRequest {
+  id               String                 @id @default(cuid())
+  status           MatchStatus            @default(PENDING)
+  message          String?                @db.Text
+  applicationAnswers Json?                @map("application_answers")
+  investorStatus   InvestorPipelineStatus @default(NONE) @map("investor_status")
+  investorNotes    String?                @db.Text @map("investor_notes")
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+
+  senderId    String   @map("sender_id")
+  sender      User     @relation("SentMatches", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId  String   @map("receiver_id")
+  receiver    User     @relation("ReceivedMatches", fields: [receiverId], references: [id], onDelete: Cascade)
+  startupId   String   @map("startup_id")
+  startup     StartupProfile @relation("StartupMatches", fields: [startupId], references: [id], onDelete: Cascade)
+  investorId  String   @map("investor_id")
+  investor    InvestorProfile @relation("InvestorMatches", fields: [investorId], references: [id], onDelete: Cascade)
+
+  messages MatchMessage[]
+
+  @@unique([startupId, investorId])
+  @@map("match_requests")
+}
+
+model MatchMessage {
+  id        String       @id @default(cuid())
+  matchId   String       @map("match_id")
+  match     MatchRequest @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  senderId  String       @map("sender_id")
+  sender    User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  body      String       @db.Text
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@map("match_messages")
+}

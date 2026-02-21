@@ -1,4 +1,25 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is a [Next.js](https://nextjs.org) project with a **startup–investor matching** feature: startups and investors sign up, create profiles, discover each other, and send/accept match requests.
+
+## Setup (matching feature)
+
+1. **Environment**
+   - Copy `.env.example` to `.env`
+   - Set `DATABASE_URL` to your Postgres connection string
+   - Set `AUTH_SECRET` (e.g. `openssl rand -base64 32`)
+
+2. **Database**
+   ```bash
+   pnpm install
+   pnpm db:generate
+   pnpm db:migrate
+   ```
+
+3. **Run**
+   ```bash
+   pnpm dev
+   ```
+
+Then open [http://localhost:3000](http://localhost:3000): register as a **Startup** or **Investor**, complete your profile, and use **Discover** to find matches.
 
 ## Getting Started
 
